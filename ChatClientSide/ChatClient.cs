@@ -2,7 +2,7 @@
 
 namespace ChatClientSide
 {
-    
+
     class ChatClient
     {
         public static void PrintHelpForArg()
@@ -71,7 +71,8 @@ namespace ChatClientSide
             if (transportProtocol == "udp")
             {
                 //  UDP client code
-                try{
+                try
+                {
                     UdpClient client = new UdpClient();
                     client.Connect(server, port);
                     messageService = new UdpMessageService(client, maxRetransmissions, confirmationTimeout);
@@ -82,14 +83,16 @@ namespace ChatClientSide
                     Environment.Exit(1);
                 }
             }
-            else{
+            else
+            {
                 //  TCP client code
-                try{
+                try
+                {
                     TcpClient client = new TcpClient();
                     client.Connect(server, port);
                     NetworkStream stream = client.GetStream();
                     messageService = new TcpMessageService(client, stream, maxRetransmissions, confirmationTimeout);
-                    
+
                 }
                 catch (Exception e)
                 {
@@ -100,99 +103,126 @@ namespace ChatClientSide
             bool running = true;
 
             while (running)
+            {
+                try
                 {
-                    try{
-                        
-                        CancellationTokenSource cts = new CancellationTokenSource();
-                        var listeningTask = messageService.StartListening(cts.Token); // Start listening without awaiting
-                        string input = Console.ReadLine();
-                        string[] inputs = input.Split(' ', 2);
-                        string command = inputs[0].Trim();
-                        switch (command)
-                        {
-                            case "/auth":
-                                string username = inputs[1].Split(' ', 2)[0].Trim();
-                                if(username.Length > 20){
-                                    Console.WriteLine("Username is longer than 20");
-                                    break;
-                                }
-                                string secret = inputs[1].Split(' ', 3)[1].Trim();
-                                if(secret.Length > 128){
-                                    Console.WriteLine("Password is longer than 128");
-                                    break;
-                                }
-                                string tryDisplayName = inputs[1].Split(' ', 3)[2].Trim();
-                                if(tryDisplayName.Length > 128){
-                                    Console.WriteLine("Display name is longer than 20");
-                                    break;
-                                }
-                                messageService.displayName = tryDisplayName;
-                                cts.Cancel();
-                                if(messageService.HandleAuth(username, secret) == true)
-                                    authorised = true;
-                                break;
-                            case "/join":
-                                if(authorised == false){
-                                    Console.WriteLine("Error: You are not authorised to join a channel");
-                                    break;
-                                }
-                                string channelId = inputs[1].Split(' ', 2)[0].Trim();
-                                if(channelId.Length > 128){
-                                    Console.WriteLine("ChannelId name is longer than 20");
-                                    break;
-                                }
-                                if(string.IsNullOrWhiteSpace(inputs[1].Split(' ', 2)[1].Trim())){
-                                    MessageService.PrintHelp();
-                                }
-                                cts.Cancel();
-                                messageService.HandleJoin(channelId);                                       
-                                break;
-                            case "/rename":
-                                if(authorised == false){
-                                    Console.WriteLine("Error: You are not authorised to rename");
-                                    break;
-                                }
-                                string renameDisplayName = inputs[1];
-                                if(renameDisplayName.Length > 128){
-                                    Console.WriteLine("Display name is longer than 20");
-                                    break;
-                                }
-                                
-                                messageService.displayName = renameDisplayName;
-                            
-                                break;
-                            case "/bye":
-                                cts.Cancel();
-                                messageService.HandleBye();
-                                running = false;
-                                break;
-                            default:
-                                if(authorised == false){
-                                    Console.WriteLine("Error: You are not authorised to send messages");
-                                    break;
-                                }
-                                cts.Cancel();
-                                messageService.HandleMsg(input);
-                                break;
-                        }
-                        if(cts.IsCancellationRequested){
-                            try{
-                                cts.Cancel();
-                            }
-                            catch{
-                                //do nothing
-                            }
-                        }
 
+                    CancellationTokenSource cts = new CancellationTokenSource();
+                    Console.CancelKeyPress += new ConsoleCancelEventHandler((sender, e) => CancellationHandler(sender, e, authorised, cts, messageService));
+                    var listeningTask = messageService.StartListening(cts.Token); // Start listening without awaiting
+                    string input = Console.ReadLine();
+                    string[] inputs = input.Split(' ', 2);
+                    string command = inputs[0].Trim();
+
+                    switch (command)
+                    {
+                        case "/auth":
+                            string username = inputs[1].Split(' ', 2)[0].Trim();
+                            if (username.Length > 20)
+                            {
+                                Console.WriteLine("Username is longer than 20");
+                                break;
+                            }
+                            string secret = inputs[1].Split(' ', 3)[1].Trim();
+                            if (secret.Length > 128)
+                            {
+                                Console.WriteLine("Password is longer than 128");
+                                break;
+                            }
+                            string tryDisplayName = inputs[1].Split(' ', 3)[2].Trim();
+                            if (tryDisplayName.Length > 128)
+                            {
+                                Console.WriteLine("Display name is longer than 20");
+                                break;
+                            }
+                            messageService.displayName = tryDisplayName;
+                            cts.Cancel();
+                            if (messageService.HandleAuth(username, secret) == true)
+                                authorised = true;
+                            break;
+                        case "/join":
+                            if (authorised == false)
+                            {
+                                Console.WriteLine("Error: You are not authorised to join a channel");
+                                break;
+                            }
+                            string channelId = inputs[1].Split(' ', 2)[0].Trim();
+
+                            if (channelId.Length > 128)
+                            {
+                                Console.WriteLine("ChannelId name is longer than 20");
+                                break;
+                            }
+                            if (string.IsNullOrWhiteSpace(inputs[1].Split(' ', 2)[1].Trim()))
+                            {
+                                MessageService.PrintHelp();
+                            }
+                            cts.Cancel();
+                            messageService.HandleJoin(channelId);
+                            break;
+                        case "/rename":
+                            if (authorised == false)
+                            {
+                                Console.WriteLine("Error: You are not authorised to rename");
+                                break;
+                            }
+                            string renameDisplayName = inputs[1];
+                            if (renameDisplayName.Length > 128)
+                            {
+                                Console.WriteLine("Display name is longer than 20");
+                                break;
+                            }
+
+                            messageService.displayName = renameDisplayName;
+
+                            break;
+                        case "/bye":
+                            cts.Cancel();
+                            messageService.HandleBye();
+                            running = false;
+                            break;
+                        default:
+                            if (authorised == false)
+                            {
+                                Console.WriteLine("Error: You are not authorised to send messages");
+                                break;
+                            }
+                            cts.Cancel();
+                            messageService.HandleMsg(input);
+                            break;
                     }
-                    catch(Exception e){
-                        Console.WriteLine("Error: " + e.Message);
-                        break;
+                    if (cts.IsCancellationRequested)
+                    {
+                        try
+                        {
+                            cts.Cancel();
+                        }
+                        catch
+                        {
+                            //do nothing
+                        }
                     }
+
                 }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Error: " + e.Message);
+                    break;
+                }
+            }
             messageService.Close();
         }
-        
-        
+
+        private static void CancellationHandler(object? sender, ConsoleCancelEventArgs e, bool authorised, CancellationTokenSource cts, MessageService messageService)
+        {
+            if (authorised == true)
+            {
+                cts.Cancel();
+                messageService.HandleBye();
+                messageService.Close();
+                Environment.Exit(0);
+                return;
+            }
+        }
     }
 }

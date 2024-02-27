@@ -12,3 +12,4 @@
 /Users/nikitakoliada/University/fourth_sem/ipk/chat/ChatClientSide/ChatClientSide/obj/Debug/net8.0/ChatClientSide.pdb
 /Users/nikitakoliada/University/fourth_sem/ipk/chat/ChatClientSide/ChatClientSide/obj/Debug/net8.0/ChatClientSide.genruntimeconfig.cache
 /Users/nikitakoliada/University/fourth_sem/ipk/chat/ChatClientSide/ChatClientSide/obj/Debug/net8.0/ref/ChatClientSide.dll
+/Users/nikitakoliada/University/fourth_sem/ipk/chat/ChatClientSide/ChatClientSide/obj/Debug/net8.0/ChatClientSide.sourcelink.json
