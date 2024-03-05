@@ -166,6 +166,7 @@ namespace ChatClientSide
                                     break;
                                 }
                                 cts.Cancel();
+                                listeningTask.Wait();
                                 messageService.HandleJoin(channelId);
                                 break;
                             }
@@ -189,7 +190,7 @@ namespace ChatClientSide
                                     Console.WriteLine("Display name is longer than 20");
                                     break;
                                 }
-
+                                listeningTask.Wait();
                                 messageService.displayName = renameDisplayName;
 
                                 break;
@@ -201,6 +202,7 @@ namespace ChatClientSide
                             }
                         case "/bye":
                             cts.Cancel();
+                            listeningTask.Wait();
                             messageService.HandleBye();
                             running = false;
                             break;
@@ -211,6 +213,7 @@ namespace ChatClientSide
                                 break;
                             }
                             cts.Cancel();
+                            listeningTask.Wait();
                             messageService.HandleMsg(input);
                             break;
                     }

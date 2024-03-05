@@ -28,6 +28,7 @@ namespace ChatClientSide
             this.port = port;
             this.client = client;
             this.client.Client.ReceiveTimeout = confirmationTimeout;
+            this.client.Client.SendTimeout = confirmationTimeout;
         }
 
         public int GetMessageId()
@@ -58,12 +59,16 @@ namespace ChatClientSide
                 // Wait for a message from the server
                 try
                 {
-                    using (var cts = new CancellationTokenSource(confirmationTimeout)) // Set up a new CTS with 250 ms timeout
+                    using (var cts = new CancellationTokenSource(client.Client.ReceiveTimeout)) // Set up a new CTS with 100 ms timeout
                     {
                         UdpReceiveResult result = await client.ReceiveAsync(cts.Token).ConfigureAwait(false);
                         byte[] serverResponse = result.Buffer;
                         MessageType msgType = (MessageType)serverResponse[0];
                         int receivedMessageId = BitConverter.ToUInt16(new byte[] { serverResponse[1], serverResponse[2] }, 0);
+                        if (msgType == MessageType.CONFIRM)
+                        {
+                            Console.WriteLine("Received confirmation where it doesnt need to be " + receivedMessageId);
+                        }
                         if (msgType == MessageType.ERR || msgType == MessageType.MSG)
                         {
                             string receivedDisplayName = ExtractString(serverResponse, startIndex: 3);
@@ -109,33 +114,34 @@ namespace ChatClientSide
 
         }
 
-        public async Task<bool> WaitConfirm(int messageId)
+        public bool WaitConfirm(int messageId)
         {
             try
             {
-                using (var cts = new CancellationTokenSource(confirmationTimeout)) // Set up a new CTS timeout
+
+                //UdpReceiveResult result = await client.ReceiveAsync(cts.Token).ConfigureAwait(false);
+                //byte[] serverResponse = result.Buffer;
+                //port = result.RemoteEndPoint.Port;
+                IPEndPoint endpoint = new IPEndPoint(IPAddress.Any, 0);
+                byte[] serverResponse = client.Receive(ref endpoint);
+                port = endpoint.Port;
+                // Check if the response is a "CONFIRM" message
+                if (serverResponse[0] == (byte)MessageType.CONFIRM)
                 {
-                    UdpReceiveResult result = await client.ReceiveAsync(cts.Token).ConfigureAwait(false);
-                    byte[] serverResponse = result.Buffer;
-                    port = result.RemoteEndPoint.Port;
-                    // Check if the response is a "CONFIRM" message
-                    if (serverResponse[0] == (byte)MessageType.CONFIRM)
+                    // Extract the message ID from the response
+                    byte[] responseMessageIdBytes = new byte[] { serverResponse[1], serverResponse[2] };
+                    if (BitConverter.ToInt16(responseMessageIdBytes, 0) != messageId)
                     {
-                        // Extract the message ID from the response
-                        byte[] responseMessageIdBytes = new byte[] { serverResponse[1], serverResponse[2] };
-                        Console.WriteLine("Received confirmation: " + BitConverter.ToInt16(responseMessageIdBytes, 0));
-                        if (BitConverter.ToInt16(responseMessageIdBytes, 0) != messageId)
-                        {
-                            return false;
-                        }
-                        else
-                        {
-                            int responseMessageId = BitConverter.ToInt16(responseMessageIdBytes, 0);
-                            return true;
-                        }
+                        return false;
                     }
-                    return false;
+                    else
+                    {
+                        int responseMessageId = BitConverter.ToInt16(responseMessageIdBytes, 0);
+                        return true;
+                    }
                 }
+                return false;
+
             }
             catch (OperationCanceledException)
             {
@@ -146,7 +152,8 @@ namespace ChatClientSide
             {
                 if (ex.SocketErrorCode == SocketError.TimedOut)
                 {
-                    return false;
+                    Console.WriteLine("Confirmation timed out");
+
                 }
                 else
                 {
@@ -156,51 +163,57 @@ namespace ChatClientSide
             return false;
         }
 
-        private async Task<bool> WaitOnReply(int messageId)
+        private bool WaitOnReply(int messageId)
         {
             bool messageReceived = false;
             int receivedMessageId = 0;
             bool messageStatus = false;
-            while (messageReceived != true)
+            int attempts = 0;
+            while (attempts < maxRetransmissions && !messageReceived)
             {
+                attempts++;
                 try
                 {
-                    using (var cts = new CancellationTokenSource(confirmationTimeout))
+                    IPEndPoint endpoint = new IPEndPoint(IPAddress.Any, 0);
+                    byte[] receiveBytes = client.Receive(ref endpoint);
+                    // Parsing the message according to the given structure
+                    byte replyByte = receiveBytes[0];
+                    receivedMessageId = BitConverter.ToUInt16(new byte[] { receiveBytes[1], receiveBytes[2] }, 0);
+                    HandleConfirm(receivedMessageId);
+                    if (replyByte != (byte)MessageType.REPLY)
                     {
-                        UdpReceiveResult udpResult = await client.ReceiveAsync(cts.Token).ConfigureAwait(false);
-                        byte[] receiveBytes = udpResult.Buffer;
-                        // Parsing the message according to the given structure
-                        byte replyByte = receiveBytes[0];
-                        if (replyByte != (byte)MessageType.REPLY)
+                        if (replyByte == (byte)MessageType.MSG)
                         {
-                            continue;
+                            string receivedDisplayName = ExtractString(receiveBytes, startIndex: 3);
+                            string messageContents = ExtractString(receiveBytes, startIndex: 3 + receivedDisplayName.Length + 1);
+                            Console.WriteLine(receivedDisplayName + ": " + messageContents);
                         }
-                        receivedMessageId = BitConverter.ToUInt16(new byte[] { receiveBytes[1], receiveBytes[2] }, 0);
-                        byte result = receiveBytes[3];
-                        int refMessageId = BitConverter.ToUInt16(new byte[] { receiveBytes[4], receiveBytes[5] }, 0);
-                        Console.WriteLine("Received message ID: " + receivedMessageId);
-                        if (refMessageId != messageId)
-                        {
-                            continue;
-                        }
-                        // Assuming the message content starts at index 6 and is followed by a zero byte
-                        int messageContentLength = Array.IndexOf(receiveBytes, (byte)0, 6) - 6;
-                        string messageContent = Encoding.ASCII.GetString(receiveBytes, 6, messageContentLength);
-                        messageReceived = true;
-                        if ((int)result == 1)
-                        {
-                            messageStatus = true;
-                            Console.WriteLine("Success: " + messageContent);
-                        }
-                        else if ((int)result == 0)
-                        {
-                            Console.WriteLine("Failure: " + messageContent);
-                        }
+                        continue;
                     }
+                    byte result = receiveBytes[3];
+                    int refMessageId = BitConverter.ToUInt16(new byte[] { receiveBytes[4], receiveBytes[5] }, 0);
+                    if (refMessageId != messageId)
+                    {
+                        continue;
+                    }
+                    // Assuming the message content starts at index 6 and is followed by a zero byte
+                    int messageContentLength = Array.IndexOf(receiveBytes, (byte)0, 6) - 6;
+                    string messageContent = Encoding.ASCII.GetString(receiveBytes, 6, messageContentLength);
+                    messageReceived = true;
+                    if ((int)result == 1)
+                    {
+                        messageStatus = true;
+                        Console.WriteLine("Success: " + messageContent);
+                    }
+                    else if ((int)result == 0)
+                    {
+                        Console.WriteLine("Failure: " + messageContent);
+                    }
+
                 }
                 catch (OperationCanceledException)
                 {
-                    Console.WriteLine("Confirmation timed out");
+                    Console.WriteLine("Reply timed out");
 
                 }
                 catch (SocketException ex)
@@ -215,8 +228,6 @@ namespace ChatClientSide
                     }
                 }
             }
-            HandleConfirm(receivedMessageId);
-
             return messageStatus;
         }
 
@@ -244,14 +255,15 @@ namespace ChatClientSide
             byte[] message = messageBuilder.GetMessage();
             int attempts = 0;
             client.Send(message, message.Length, server, port);
-            if (!WaitConfirm(messageId).Result)
+            if (!WaitConfirm(messageId))
             {
                 while (attempts < maxRetransmissions)
                 {
                     messageId = GetMessageId();
                     UdpMessageBuilder.ReplaceMessageId(message, messageId);
                     client.Send(message, message.Length, server, port);
-                    if (WaitConfirm(messageId).Result)
+                    Console.WriteLine("Resending auth message");
+                    if (WaitConfirm(messageId))
                     {
                         break;
                     }
@@ -269,7 +281,7 @@ namespace ChatClientSide
                 }
             }
             //wait on reply from server
-            return WaitOnReply(messageId).Result;
+            return WaitOnReply(messageId);
         }
 
         public override void HandleJoin(string channelId)
@@ -286,14 +298,14 @@ namespace ChatClientSide
             // Send the message to the server
             int attempts = 0;
             client.Send(message, message.Length, server, port);
-            if (!WaitConfirm(messageId).Result)
+            if (!WaitConfirm(messageId))
             {
                 while (attempts < maxRetransmissions)
                 {
                     messageId = GetMessageId();
                     UdpMessageBuilder.ReplaceMessageId(message, messageId);
                     client.Send(message, message.Length, server, port);
-                    if (WaitConfirm(messageId).Result)
+                    if (WaitConfirm(messageId))
                     {
                         break;
                     }
@@ -309,7 +321,7 @@ namespace ChatClientSide
                 }
             }
             //wait on reply from server
-            bool messageStatus = WaitOnReply(messageId).Result;
+            bool messageStatus = WaitOnReply(messageId);
         }
 
         public override void HandleMsg(string messageContents)
@@ -327,14 +339,14 @@ namespace ChatClientSide
             //send message to server until confrimation received
             int attempts = 0;
             client.Send(message, message.Length, server, port);
-            if (!WaitConfirm(messageId).Result)
+            if (!WaitConfirm(messageId))
             {
                 while (attempts < maxRetransmissions)
                 {
                     messageId = GetMessageId();
                     UdpMessageBuilder.ReplaceMessageId(message, messageId);
                     client.Send(message, message.Length, server, port);
-                    if (WaitConfirm(messageId).Result)
+                    if (WaitConfirm(messageId))
                     {
                         break;
                     }
@@ -363,14 +375,14 @@ namespace ChatClientSide
             int attempts = 0;
             client.Send(message, message.Length, server, port);
 
-            if (!WaitConfirm(messageId).Result)
+            if (!WaitConfirm(messageId))
             {
                 while (attempts < maxRetransmissions)
                 {
                     messageId = GetMessageId();
                     UdpMessageBuilder.ReplaceMessageId(message, messageId);
                     client.Send(message, message.Length, server, port);
-                    if (WaitConfirm(messageId).Result)
+                    if (WaitConfirm(messageId))
                     {
                         break;
                     }
