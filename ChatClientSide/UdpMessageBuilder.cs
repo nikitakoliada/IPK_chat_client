@@ -20,8 +20,7 @@ public class UdpMessageBuilder
 
     public void AddMessageId(int messageId)
     {
-        string messageIdStr = messageId.ToString();
-        byte[] messageIdBytes = Encoding.UTF8.GetBytes(messageIdStr);
+        byte[] messageIdBytes = BitConverter.GetBytes((ushort)messageId);
         // Ensure there's enough space for messageId, assuming a fixed length for simplicity
         // This could be dynamic based on the actual messageId length or a predefined protocol specification
         _writer.Write(new byte[2]); // Placeholder for messageId if it has a fixed length
@@ -37,7 +36,7 @@ public class UdpMessageBuilder
     }
     public void AddStringWithDelimiter(string value)
     {
-        byte[] valueBytes = Encoding.UTF8.GetBytes(value);
+        byte[] valueBytes = Encoding.UTF8.GetBytes(value.Trim());
         _writer.Write(valueBytes);
         _writer.Write((byte)0); // Zero byte delimiter
     }

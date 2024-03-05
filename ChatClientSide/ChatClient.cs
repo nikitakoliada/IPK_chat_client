@@ -1,4 +1,5 @@
-﻿using System.Net.Sockets;
+﻿using System.Net;
+using System.Net.Sockets;
 
 namespace ChatClientSide
 {
@@ -74,8 +75,9 @@ namespace ChatClientSide
                 try
                 {
                     UdpClient client = new UdpClient();
-                    client.Connect(server, port);
-                    messageService = new UdpMessageService(client, maxRetransmissions, confirmationTimeout);
+                    // IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse(server), port);
+                    //                     client.Client.Bind(endpoint);
+                    messageService = new UdpMessageService(client, maxRetransmissions, confirmationTimeout, server, port);
                 }
                 catch (Exception e)
                 {
@@ -106,7 +108,6 @@ namespace ChatClientSide
             {
                 try
                 {
-
                     CancellationTokenSource cts = new CancellationTokenSource();
                     Console.CancelKeyPress += new ConsoleCancelEventHandler((sender, e) => CancellationHandler(sender, e, authorised, cts, messageService));
                     var listeningTask = messageService.StartListening(cts.Token); // Start listening without awaiting
@@ -117,65 +118,87 @@ namespace ChatClientSide
                     switch (command)
                     {
                         case "/auth":
-                            string username = inputs[1].Split(' ', 2)[0].Trim();
-                            if (username.Length > 20)
+                            try
                             {
-                                Console.WriteLine("Username is longer than 20");
+                                string username = inputs[1].Split(' ', 2)[0].Trim();
+                                if (username.Length > 20)
+                                {
+                                    Console.WriteLine("Username is longer than 20");
+                                    break;
+                                }
+                                string secret = inputs[1].Split(' ', 3)[1].Trim();
+                                if (secret.Length > 128)
+                                {
+                                    Console.WriteLine("Password is longer than 128");
+                                    break;
+                                }
+                                string tryDisplayName = inputs[1].Split(' ', 3)[2].Trim();
+                                if (tryDisplayName.Length > 128)
+                                {
+                                    Console.WriteLine("Display name is longer than 20");
+                                    break;
+                                }
+                                messageService.displayName = tryDisplayName;
+                                cts.Cancel();
+                                if (messageService.HandleAuth(username, secret) == true)
+                                    authorised = true;
                                 break;
                             }
-                            string secret = inputs[1].Split(' ', 3)[1].Trim();
-                            if (secret.Length > 128)
+                            catch (IndexOutOfRangeException)
                             {
-                                Console.WriteLine("Password is longer than 128");
-                                break;
+                                Console.WriteLine("Wrong amount of elements for the commmand");
+                                continue;
                             }
-                            string tryDisplayName = inputs[1].Split(' ', 3)[2].Trim();
-                            if (tryDisplayName.Length > 128)
-                            {
-                                Console.WriteLine("Display name is longer than 20");
-                                break;
-                            }
-                            messageService.displayName = tryDisplayName;
-                            cts.Cancel();
-                            if (messageService.HandleAuth(username, secret) == true)
-                                authorised = true;
-                            break;
+
                         case "/join":
-                            if (authorised == false)
+                            try
                             {
-                                Console.WriteLine("Error: You are not authorised to join a channel");
-                                break;
-                            }
-                            string channelId = inputs[1].Split(' ', 2)[0].Trim();
+                                if (authorised == false)
+                                {
+                                    Console.WriteLine("Error: You are not authorised to join a channel");
+                                    break;
+                                }
+                                string channelId = inputs[1].Split(' ', 2)[0].Trim();
 
-                            if (channelId.Length > 128)
-                            {
-                                Console.WriteLine("ChannelId name is longer than 20");
+                                if (channelId.Length > 128)
+                                {
+                                    Console.WriteLine("ChannelId name is longer than 20");
+                                    break;
+                                }
+                                cts.Cancel();
+                                messageService.HandleJoin(channelId);
                                 break;
                             }
-                            if (string.IsNullOrWhiteSpace(inputs[1].Split(' ', 2)[1].Trim()))
+                            catch (IndexOutOfRangeException)
                             {
-                                MessageService.PrintHelp();
+                                Console.WriteLine("Wrong amount of elements for the commmand");
+                                continue;
                             }
-                            cts.Cancel();
-                            messageService.HandleJoin(channelId);
-                            break;
                         case "/rename":
-                            if (authorised == false)
+                            try
                             {
-                                Console.WriteLine("Error: You are not authorised to rename");
+                                cts.Cancel();
+                                if (authorised == false)
+                                {
+                                    Console.WriteLine("Error: You are not authorised to rename");
+                                    break;
+                                }
+                                string renameDisplayName = inputs[1];
+                                if (renameDisplayName.Length > 128)
+                                {
+                                    Console.WriteLine("Display name is longer than 20");
+                                    break;
+                                }
+
+                                messageService.displayName = renameDisplayName;
+
                                 break;
                             }
-                            string renameDisplayName = inputs[1];
-                            if (renameDisplayName.Length > 128)
+                            catch (IndexOutOfRangeException)
                             {
-                                Console.WriteLine("Display name is longer than 20");
-                                break;
+                                Console.WriteLine("Wrong amount of elements for the commmand");
+                                continue;
                             }
-
-                            messageService.displayName = renameDisplayName;
-
-                            break;
                         case "/bye":
                             cts.Cancel();
                             messageService.HandleBye();
@@ -217,11 +240,18 @@ namespace ChatClientSide
         {
             if (authorised == true)
             {
-                cts.Cancel();
-                messageService.HandleBye();
-                messageService.Close();
-                Environment.Exit(0);
-                return;
+                try
+                {
+                    cts.Cancel();
+                    messageService.HandleBye();
+                    messageService.Close();
+                    Environment.Exit(0);
+                    return;
+                }
+                catch
+                {
+                    //do nothing
+                }
             }
         }
     }

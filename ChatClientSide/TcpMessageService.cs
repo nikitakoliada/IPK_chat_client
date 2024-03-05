@@ -23,7 +23,7 @@ public class TcpMessageService : MessageService
                 int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false);
                 if (bytesRead == 0)
                 {
-                    Console.WriteLine("Server has closed the connection.");
+                    Console.WriteLine("Server has closed the connection." + "\r\n");
                     break;
                 }
                 string response = Encoding.ASCII.GetString(buffer, 0, bytesRead);
@@ -41,18 +41,28 @@ public class TcpMessageService : MessageService
     }
     public void HandleResponse(string responseData)
     {
-        Console.WriteLine(responseData);
         // th is this lol
         var parts = responseData.Split('\n');
         foreach (var response in parts)
         {
-            if (response.Contains("MESSAGE"))
+            if (response.Contains("MSG"))
             {
-                Console.WriteLine(response.Replace("MESSAGE FROM ", "").Replace(" IS ", ": ").Replace("\r\n", "").Trim());
+                Console.WriteLine(response.Replace("MSG FROM ", "").Replace(" IS ", ": ").Replace("\r\n", "").Trim());
             }
-            else if (response.Contains("ERROR FROM"))
+            else if (responseData.Contains("REPLY OK IS"))
             {
-                Console.WriteLine(response.Replace(" IS ", ": ").Replace("\r\n", ""));
+                responseData = responseData.Replace("REPLY OK IS ", "").Replace("\r\n", "");
+                // if (responseData.Contains("successfully joined"))
+                Console.WriteLine("Success: " + responseData);
+            }
+            else if (responseData.Contains("REPLY NOK IS"))
+            {
+                responseData = responseData.Replace("REPLY NOK IS ", "").Replace("\r\n", "");
+                Console.WriteLine("Failure: " + responseData);
+            }
+            else if (response.Contains("ERR FROM"))
+            {
+                responseData = responseData.Replace("ERR", "ERROR").Replace(" IS ", ": ").Replace("\r\n", "");
                 stream.Close();
                 client.Close();
                 Environment.Exit(0);
@@ -78,14 +88,23 @@ public class TcpMessageService : MessageService
         int bytes = stream.Read(responseBytes, 0, responseBytes.Length);
         string responseData = Encoding.ASCII.GetString(responseBytes, 0, bytes);
 
-        if (responseData.Contains("REPLY OK IS Authentication successful"))
+        if (responseData.Contains("REPLY OK IS"))
         {
-            Console.WriteLine("Success: Auth success.");
-            return true;
+            responseData = responseData.Replace("REPLY OK IS ", "").Replace("\r\n", "");
+            if (responseData.Contains("Authentication successful"))
+            {
+                Console.WriteLine("Success: " + responseData);
+                return true;
+            }
+            else
+            {
+                Console.WriteLine("Failure: " + responseData);
+                return false;
+            }
         }
-        else if (responseData.Contains("ERROR FROM"))
+        else if (responseData.Contains("ERR FROM"))
         {
-            responseData = responseData.Replace(" IS ", ": ").Replace("\r\n", "");
+            responseData = responseData.Replace("ERR", "ERROR").Replace(" IS ", ": ").Replace("\r\n", "");
             Console.WriteLine(responseData);
             stream.Close();
             client.Close();
@@ -94,7 +113,7 @@ public class TcpMessageService : MessageService
         }
         else if (responseData.Contains("BYE"))
         {
-            Console.WriteLine(responseData);
+            Console.WriteLine("Server has closed the connection.");
             stream.Close();
             client.Close();
             Environment.Exit(0);
@@ -102,51 +121,69 @@ public class TcpMessageService : MessageService
         }
         else
         {
-            Console.WriteLine(responseData);
-            Console.WriteLine("Failure: Auth is not success\n");
+            Console.WriteLine("Failure: Auth is not success\r\n");
             return false;
         }
     }
 
     public override void HandleJoin(string channelId)
     {
-        string message = string.Format("JOIN {0} AS {1}\r\n", channelId, displayName);
+        string message = string.Format("JOIN {0} AS {1}\r\n", channelId.Trim(), displayName.Trim());
         byte[] data = Encoding.ASCII.GetBytes(message);
         stream.Write(data, 0, data.Length);
         //wait on reply from server
-        byte[] responseBytes = new byte[1000];
-        int bytes = stream.Read(responseBytes, 0, responseBytes.Length);
-        string responseData = Encoding.ASCII.GetString(responseBytes, 0, bytes);
 
-        if (responseData.Contains("REPLY OK IS Join success"))
-        {
-            Console.WriteLine("Success: Join success.");
-        }
-        else if (responseData.Contains("ERROR FROM"))
-        {
-            responseData = responseData.Replace(" IS ", ": ").Replace("\r\n", "");
-            Console.WriteLine(responseData);
-            stream.Close();
-            client.Close();
-            Environment.Exit(0);
-        }
-        else if (responseData.Contains("BYE"))
-        {
-            stream.Close();
-            client.Close();
-            Environment.Exit(0);
-        }
-        else
-        {
-            Console.WriteLine("Failure: Join is not success\n");
-        }
+
+        bool gotReply = false;
+        // wait for a reply from the server ( doesnt send somhoew)
+        //while (!gotReply)
+        //{
+            byte[] responseBytes = new byte[1000];
+            int bytes = stream.Read(responseBytes, 0, responseBytes.Length);
+            string responseData = Encoding.ASCII.GetString(responseBytes, 0, bytes);
+            if (responseData.Contains("REPLY OK IS"))
+            {
+                responseData = responseData.Replace("REPLY OK IS ", "").Replace("\r\n", "");
+                Console.WriteLine("Success: " + responseData);
+                gotReply = true;
+            }
+            else if (responseData.Contains("REPLY NOK IS"))
+            {
+                responseData = responseData.Replace("REPLY NOK IS ", "").Replace("\r\n", "");
+                Console.WriteLine("Failure: " + responseData);
+                gotReply = true;
+            }
+            else if (responseData.Contains("ERR FROM"))
+            {
+                responseData = responseData.Replace("ERR", "ERROR").Replace(" IS ", ": ").Replace("\r\n", "");
+                Console.WriteLine(responseData);
+                gotReply = true;
+
+            }
+            else if (responseData.Contains("BYE"))
+            {
+                stream.Close();
+                client.Close();
+                Environment.Exit(0);
+            }
+            else if (responseData.Contains("MSG FROM"))
+            {
+                Console.WriteLine(responseData.Replace("MSG FROM ", "").Replace(" IS ", ": ").Replace("\r\n", "").Trim());
+
+            }
+            else
+            {
+                Console.WriteLine("Failure: " + responseData);
+                gotReply = true;
+            }
+        //}
     }
 
 
 
     public override void HandleMsg(string messageContents)
     {
-        string message = string.Format("MESSAGE FROM {0} IS {1}\r\n", displayName, messageContents);
+        string message = string.Format("MSG FROM {0} IS {1}\r\n", displayName, messageContents);
         byte[] data = Encoding.ASCII.GetBytes(message);
         stream.Write(data, 0, data.Length);
         //wait on reply from server
