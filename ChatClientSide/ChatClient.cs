@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Buffers;
+using System.Net;
 using System.Net.Sockets;
 
 namespace ChatClientSide
@@ -56,14 +57,14 @@ namespace ChatClientSide
             // Check if the mandatory arguments are set
             if (!tFlag || !sFlag)
             {
-                Console.WriteLine("Error: Missing mandatory arguments. -t and -s are required.");
+                Console.WriteLine("ERR: Missing mandatory arguments. -t and -s are required.");
                 Environment.Exit(1); // Exit with an error code
             }
 
             // Additional validation for transport protocol
             if (transportProtocol != "tcp" && transportProtocol != "udp")
             {
-                Console.WriteLine("Error: wrong transport protocol");
+                Console.WriteLine("ERR: wrong transport protocol");
                 Environment.Exit(1); // Exit with an error code
                 return;
             }
@@ -81,7 +82,7 @@ namespace ChatClientSide
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Error: " + e.Message);
+                    Console.WriteLine("ERR: " + e.Message);
                     Environment.Exit(1);
                 }
             }
@@ -98,7 +99,7 @@ namespace ChatClientSide
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Error: " + e.Message);
+                    Console.WriteLine("ERR: " + e.Message);
                     Environment.Exit(1);
                 }
             }
@@ -109,33 +110,45 @@ namespace ChatClientSide
                 try
                 {
                     CancellationTokenSource cts = new CancellationTokenSource();
-                    Console.CancelKeyPress += new ConsoleCancelEventHandler((sender, e) => CancellationHandler(sender, e, authorised, cts, messageService));
                     var listeningTask = messageService.StartListening(cts.Token); // Start listening without awaiting
-                    string input = Console.ReadLine();
+                    Console.CancelKeyPress += new ConsoleCancelEventHandler((sender, e) => CancellationHandler(sender, e, authorised, cts, messageService, listeningTask));
+
+                    string? input = Console.ReadLine();
+                    if (input == null)
+                    {
+                        continue;
+                    }
                     string[] inputs = input.Split(' ', 2);
                     string command = inputs[0].Trim();
-
+                    if (inputs.Length > 1)
+                        inputs[1] = inputs[1].Trim();
                     switch (command)
                     {
                         case "/auth":
                             try
                             {
-                                string username = inputs[1].Split(' ', 2)[0].Trim();
+                                var elements = inputs[1].Split(' ');
+                                if (elements.Length != 3)
+                                {
+                                    Console.WriteLine("ERR: Wrong amount of elements for the commmand");
+                                    break;
+                                }
+                                string username = elements[0].Trim();
                                 if (username.Length > 20)
                                 {
-                                    Console.WriteLine("Username is longer than 20");
+                                    Console.WriteLine("ERR: Username is longer than 20");
                                     break;
                                 }
-                                string secret = inputs[1].Split(' ', 3)[1].Trim();
+                                string secret = elements[1].Trim();
                                 if (secret.Length > 128)
                                 {
-                                    Console.WriteLine("Password is longer than 128");
+                                    Console.WriteLine("ERR: Password is longer than 128");
                                     break;
                                 }
-                                string tryDisplayName = inputs[1].Split(' ', 3)[2].Trim();
+                                string tryDisplayName = elements[2].Trim();
                                 if (tryDisplayName.Length > 128)
                                 {
-                                    Console.WriteLine("Display name is longer than 20");
+                                    Console.WriteLine("ERR: Display name is longer than 20");
                                     break;
                                 }
                                 messageService.displayName = tryDisplayName;
@@ -146,23 +159,28 @@ namespace ChatClientSide
                             }
                             catch (IndexOutOfRangeException)
                             {
-                                Console.WriteLine("Wrong amount of elements for the commmand");
+                                Console.WriteLine("ERR: Wrong amount of elements for the commmand");
                                 continue;
                             }
 
                         case "/join":
                             try
                             {
-                                if (authorised == false)
+                                var elements = inputs[1].Split(' ');
+                                if (elements.Length != 1)
                                 {
-                                    Console.WriteLine("Error: You are not authorised to join a channel");
+                                    Console.WriteLine("ERR: Wrong amount of elements for the commmand");
                                     break;
                                 }
-                                string channelId = inputs[1].Split(' ', 2)[0].Trim();
-
+                                if (authorised == false)
+                                {
+                                    Console.WriteLine("ERR: You are not authorised to join a channel");
+                                    break;
+                                }
+                                string channelId = elements[0].Trim();
                                 if (channelId.Length > 128)
                                 {
-                                    Console.WriteLine("ChannelId name is longer than 20");
+                                    Console.WriteLine("ERR: ChannelId name is longer than 20");
                                     break;
                                 }
                                 cts.Cancel();
@@ -172,22 +190,28 @@ namespace ChatClientSide
                             }
                             catch (IndexOutOfRangeException)
                             {
-                                Console.WriteLine("Wrong amount of elements for the commmand");
+                                Console.WriteLine("ERR: Wrong amount of elements for the commmand");
                                 continue;
                             }
                         case "/rename":
                             try
                             {
+                                var elements = inputs[1].Split(' ');
+                                if (elements.Length != 1)
+                                {
+                                    Console.WriteLine("ERR: Wrong amount of elements for the commmand");
+                                    break;
+                                }
                                 cts.Cancel();
                                 if (authorised == false)
                                 {
-                                    Console.WriteLine("Error: You are not authorised to rename");
+                                    Console.WriteLine("ERR: You are not authorised to rename");
                                     break;
                                 }
                                 string renameDisplayName = inputs[1];
                                 if (renameDisplayName.Length > 128)
                                 {
-                                    Console.WriteLine("Display name is longer than 20");
+                                    Console.WriteLine("ERR: Display name is longer than 20");
                                     break;
                                 }
                                 listeningTask.Wait();
@@ -197,19 +221,32 @@ namespace ChatClientSide
                             }
                             catch (IndexOutOfRangeException)
                             {
-                                Console.WriteLine("Wrong amount of elements for the commmand");
+                                Console.WriteLine("ERR: Wrong amount of elements for the commmand");
                                 continue;
                             }
                         case "/bye":
+                            if (inputs.Length != 1)
+                            {
+                                Console.WriteLine("ERR: Wrong amount of elements for the commmand");
+                                break;
+                            }
                             cts.Cancel();
                             listeningTask.Wait();
                             messageService.HandleBye();
                             running = false;
                             break;
+                        case "/help":
+                            if (inputs.Length != 1)
+                            {
+                                Console.WriteLine("ERR: Wrong amount of elements for the commmand");
+                                break;
+                            }
+                            MessageService.PrintHelp();
+                            break;
                         default:
                             if (authorised == false)
                             {
-                                Console.WriteLine("Error: You are not authorised to send messages");
+                                Console.WriteLine("ERR: You are not authorised to send messages");
                                 break;
                             }
                             cts.Cancel();
@@ -230,30 +267,35 @@ namespace ChatClientSide
                     }
 
                 }
+                catch (OperationCanceledException)
+                {
+                    continue;
+                }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Error: " + e.Message);
+                    Console.WriteLine("ERR: " + e.Message);
                     break;
                 }
             }
             messageService.Close();
         }
 
-        private static void CancellationHandler(object? sender, ConsoleCancelEventArgs e, bool authorised, CancellationTokenSource cts, MessageService messageService)
+        private static void CancellationHandler(object? sender, ConsoleCancelEventArgs e, bool authorised, CancellationTokenSource cts, MessageService messageService, dynamic listeningTask)
         {
             if (authorised == true)
             {
                 try
                 {
                     cts.Cancel();
+                    listeningTask.Wait();
                     messageService.HandleBye();
                     messageService.Close();
                     Environment.Exit(0);
                     return;
                 }
-                catch
+                catch (Exception ex)
                 {
-                    //do nothing
+                    Console.WriteLine("ERR: " + ex.Message);
                 }
             }
         }

@@ -34,9 +34,13 @@ public class TcpMessageService : MessageService
         {
             return;
         }
+        catch (IOException)
+        {
+            return;
+        }
         catch (Exception ex)
         {
-            Console.WriteLine("Error " + ex.Message);
+            Console.WriteLine("ERR " + ex.Message);
         }
     }
     public void HandleResponse(string responseData)
@@ -62,7 +66,7 @@ public class TcpMessageService : MessageService
             }
             else if (response.Contains("ERR FROM"))
             {
-                responseData = responseData.Replace("ERR", "ERROR").Replace(" IS ", ": ").Replace("\r\n", "");
+                responseData = responseData.Replace(" IS ", ": ").Replace("\r\n", "");
                 stream.Close();
                 client.Close();
                 Environment.Exit(0);
@@ -90,38 +94,12 @@ public class TcpMessageService : MessageService
 
         if (responseData.Contains("REPLY OK IS"))
         {
-            responseData = responseData.Replace("REPLY OK IS ", "").Replace("\r\n", "");
-            if (responseData.Contains("Authentication successful"))
-            {
-                Console.WriteLine("Success: " + responseData);
-                return true;
-            }
-            else
-            {
-                Console.WriteLine("Failure: " + responseData);
-                return false;
-            }
-        }
-        else if (responseData.Contains("ERR FROM"))
-        {
-            responseData = responseData.Replace("ERR", "ERROR").Replace(" IS ", ": ").Replace("\r\n", "");
-            Console.WriteLine(responseData);
-            stream.Close();
-            client.Close();
-            Environment.Exit(0);
-            return false;
-        }
-        else if (responseData.Contains("BYE"))
-        {
-            Console.WriteLine("Server has closed the connection.");
-            stream.Close();
-            client.Close();
-            Environment.Exit(0);
-            return false;
+            HandleResponse(responseData);
+            return true;
         }
         else
         {
-            Console.WriteLine("Failure: Auth is not success\r\n");
+            HandleResponse(responseData);
             return false;
         }
     }
@@ -133,49 +111,52 @@ public class TcpMessageService : MessageService
         stream.Write(data, 0, data.Length);
         //wait on reply from server
 
+        byte[] responseBytes = new byte[1000];
+        int bytes = stream.Read(responseBytes, 0, responseBytes.Length);
+        string responseData = Encoding.ASCII.GetString(responseBytes, 0, bytes);
+        HandleResponse(message);
+        // bool gotReply = false;
+        // // wait for a reply from the server ( doesnt send somhoew)
+        // //while (!gotReply)
+        // //{
+        //     byte[] responseBytes = new byte[1000];
+        //     int bytes = stream.Read(responseBytes, 0, responseBytes.Length);
+        //     string responseData = Encoding.ASCII.GetString(responseBytes, 0, bytes);
+        //     if (responseData.Contains("REPLY OK IS"))
+        //     {
+        //         responseData = responseData.Replace("REPLY OK IS ", "").Replace("\r\n", "");
+        //         Console.WriteLine("Success: " + responseData);
+        //         gotReply = true;
+        //     }
+        //     else if (responseData.Contains("REPLY NOK IS"))
+        //     {
+        //         responseData = responseData.Replace("REPLY NOK IS ", "").Replace("\r\n", "");
+        //         Console.WriteLine("Failure: " + responseData);
+        //         gotReply = true;
+        //     }
+        //     else if (responseData.Contains("ERR FROM"))
+        //     {
+        //         responseData = responseData.Replace(" IS ", ": ").Replace("\r\n", "");
+        //         Console.WriteLine(responseData);
+        //         gotReply = true;
 
-        bool gotReply = false;
-        // wait for a reply from the server ( doesnt send somhoew)
-        //while (!gotReply)
-        //{
-            byte[] responseBytes = new byte[1000];
-            int bytes = stream.Read(responseBytes, 0, responseBytes.Length);
-            string responseData = Encoding.ASCII.GetString(responseBytes, 0, bytes);
-            if (responseData.Contains("REPLY OK IS"))
-            {
-                responseData = responseData.Replace("REPLY OK IS ", "").Replace("\r\n", "");
-                Console.WriteLine("Success: " + responseData);
-                gotReply = true;
-            }
-            else if (responseData.Contains("REPLY NOK IS"))
-            {
-                responseData = responseData.Replace("REPLY NOK IS ", "").Replace("\r\n", "");
-                Console.WriteLine("Failure: " + responseData);
-                gotReply = true;
-            }
-            else if (responseData.Contains("ERR FROM"))
-            {
-                responseData = responseData.Replace("ERR", "ERROR").Replace(" IS ", ": ").Replace("\r\n", "");
-                Console.WriteLine(responseData);
-                gotReply = true;
+        //     }
+        //     else if (responseData.Contains("BYE"))
+        //     {
+        //         stream.Close();
+        //         client.Close();
+        //         Environment.Exit(0);
+        //     }
+        //     else if (responseData.Contains("MSG FROM"))
+        //     {
+        //         Console.WriteLine(responseData.Replace("MSG FROM ", "").Replace(" IS ", ": ").Replace("\r\n", "").Trim());
 
-            }
-            else if (responseData.Contains("BYE"))
-            {
-                stream.Close();
-                client.Close();
-                Environment.Exit(0);
-            }
-            else if (responseData.Contains("MSG FROM"))
-            {
-                Console.WriteLine(responseData.Replace("MSG FROM ", "").Replace(" IS ", ": ").Replace("\r\n", "").Trim());
-
-            }
-            else
-            {
-                Console.WriteLine("Failure: " + responseData);
-                gotReply = true;
-            }
+        //     }
+        //     else
+        //     {
+        //         Console.WriteLine("Failure: " + responseData);
+        //         gotReply = true;
+        //     }
         //}
     }
 
