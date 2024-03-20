@@ -104,6 +104,9 @@ public class TcpMessageService : MessageService
                     string recDisplayName = match.Groups[1].Value.Trim();
                     string messageCnt = match.Groups[2].Value.Trim();
                     Console.WriteLine("ERR FROM " + recDisplayName + ": " + messageCnt);
+                    HandleBye();
+                    client.Close();
+                    Environment.Exit(0);
                 }
             }
             else if (response.Contains("BYE"))

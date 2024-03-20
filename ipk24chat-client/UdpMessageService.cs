@@ -51,6 +51,35 @@ namespace ChatClientSide
             int stringLength = nullIndex - startIndex;
             return System.Text.Encoding.UTF8.GetString(bytes, startIndex, stringLength);
         }
+
+        public void HandleResponse(byte[] serverResponse)
+        {
+            MessageType msgType = (MessageType)serverResponse[0];
+            int receivedMessageId = BitConverter.ToUInt16(new byte[] { serverResponse[1], serverResponse[2] }, 0);
+            if (msgType == MessageType.ERR || msgType == MessageType.MSG)
+            {
+                string receivedDisplayName = ExtractString(serverResponse, startIndex: 3);
+                string messageContents = ExtractString(serverResponse, startIndex: 3 + receivedDisplayName.Length + 1);
+                HandleConfirm(receivedMessageId);
+                if (msgType == MessageType.ERR)
+                {
+                    Console.WriteLine("ERR FROM " + receivedDisplayName + ": " + messageContents);
+                    HandleBye();
+                    client.Close();
+                    Environment.Exit(0);
+                }
+                else if (msgType == MessageType.MSG)
+                {
+                    Console.WriteLine(receivedDisplayName + ": " + messageContents);
+                }
+            }
+            else if (msgType == MessageType.BYE)
+            {
+                HandleConfirm(receivedMessageId);
+                client.Close();
+                Environment.Exit(0);
+            }
+        }
         public override async Task StartListening(CancellationToken cancellationToken)
         {
 
@@ -63,29 +92,7 @@ namespace ChatClientSide
                     {
                         UdpReceiveResult result = await client.ReceiveAsync(cts.Token).ConfigureAwait(false);
                         byte[] serverResponse = result.Buffer;
-                        MessageType msgType = (MessageType)serverResponse[0];
-                        int receivedMessageId = BitConverter.ToUInt16(new byte[] { serverResponse[1], serverResponse[2] }, 0);
-                        if (msgType == MessageType.ERR || msgType == MessageType.MSG)
-                        {
-                            string receivedDisplayName = ExtractString(serverResponse, startIndex: 3);
-                            string messageContents = ExtractString(serverResponse, startIndex: 3 + receivedDisplayName.Length + 1);
-                            if (msgType == MessageType.ERR)
-                            {
-                                Console.WriteLine("ERR FROM " + receivedDisplayName + ": " + messageContents);
-                            }
-                            else if (msgType == MessageType.MSG)
-                            {
-                                Console.WriteLine(receivedDisplayName + ": " + messageContents);
-                            }
-                            HandleConfirm(receivedMessageId);
-                        }
-                        else if (msgType == MessageType.BYE)
-                        {
-                            HandleConfirm(receivedMessageId);
-                            client.Close();
-                            Environment.Exit(0);
-                            break;
-                        }
+                        HandleResponse(serverResponse);
 
                     }
                 }
@@ -131,9 +138,12 @@ namespace ChatClientSide
                     }
                     else
                     {
-                        int responseMessageId = BitConverter.ToInt16(responseMessageIdBytes, 0);
                         return true;
                     }
+                }
+                else
+                {
+                    HandleResponse(serverResponse);
                 }
                 return false;
 
@@ -168,29 +178,18 @@ namespace ChatClientSide
                 try
                 {
                     IPEndPoint endpoint = new IPEndPoint(IPAddress.Any, 0);
-                    // if the input is from file we need to wait for the server to reply
                     Thread.Sleep(250);
+                    // if the input is from file we need to wait for the server to reply
                     byte[] receiveBytes = client.Receive(ref endpoint);
                     // Parsing the message according to the given structure
                     port = endpoint.Port;
                     byte replyByte = receiveBytes[0];
                     receivedMessageId = BitConverter.ToUInt16(new byte[] { receiveBytes[1], receiveBytes[2] }, 0);
-                    HandleConfirm(receivedMessageId);
                     if (replyByte != (byte)MessageType.REPLY)
                     {
-                        string receivedDisplayName = ExtractString(receiveBytes, startIndex: 3);
-                        string messageContents = ExtractString(receiveBytes, startIndex: 3 + receivedDisplayName.Length + 1);
-
-                        if (replyByte == (byte)MessageType.MSG)
-                        {
-                            Console.WriteLine(receivedDisplayName + ": " + messageContents);
-                        }
-                        if (replyByte == (byte)MessageType.ERR)
-                        {
-                            Console.WriteLine("ERR FROM " + receivedDisplayName + ": " + messageContents);
-                        }
-                        continue;
+                        HandleResponse(receiveBytes);
                     }
+                    HandleConfirm(receivedMessageId);
                     byte result = receiveBytes[3];
                     int refMessageId = BitConverter.ToUInt16(new byte[] { receiveBytes[4], receiveBytes[5] }, 0);
                     if (refMessageId != messageId)
@@ -205,10 +204,13 @@ namespace ChatClientSide
                     {
                         messageStatus = true;
                         Console.WriteLine("Success: " + messageContent);
+                        return messageStatus;
+
                     }
                     else if ((int)result == 0)
                     {
                         Console.WriteLine("Failure: " + messageContent);
+                        return messageStatus;
                     }
 
                 }

@@ -2,6 +2,7 @@
 using System.Net;
 using System.Net.Mail;
 using System.Net.Sockets;
+using System.Text.RegularExpressions;
 
 namespace ChatClientSide
 {
@@ -114,19 +115,38 @@ namespace ChatClientSide
                     Thread.Sleep(250);
                     string? input = Console.ReadLine();
                     Console.WriteLine(input);
-                    if (input == null)
+                    if (input == null || input == "" || input == "\n" || input == "\r" || input == "\r\n" || input == " ")
                     {
+                        cts.Cancel();
+                        try
+                        {
+                            listeningTask.Wait();
+                        }
+                        catch
+                        {
+                            //do nothing
+                        }
                         continue;
                     }
                     string[] inputs = input.Split(' ', 2);
                     string command = inputs[0].Trim();
                     if (inputs.Length > 1)
                         inputs[1] = inputs[1].Trim();
+
                     switch (command)
                     {
                         case "/auth":
                             try
                             {
+                                cts.Cancel();
+                                try
+                                {
+                                    listeningTask.Wait();
+                                }
+                                catch
+                                {
+                                    //do nothing
+                                }
                                 if(authorised == true)
                                 {
                                     Console.WriteLine("ERR: You are already authorised");
@@ -139,25 +159,24 @@ namespace ChatClientSide
                                     break;
                                 }
                                 string username = elements[0].Trim();
-                                if (username.Length > 20)
+                                if (username.Length > 20 && !Regex.IsMatch(username, @"^[A-Za-z0-9-]+$"))
                                 {
-                                    Console.WriteLine("ERR: Username is longer than 20");
+                                    Console.WriteLine("ERR: Username is longer than 20 or contains invalid characters");
                                     break;
                                 }
                                 string secret = elements[1].Trim();
-                                if (secret.Length > 128)
+                                if (secret.Length > 128 && !Regex.IsMatch(secret, @"^[A-Za-z0-9-]+$"))
                                 {
-                                    Console.WriteLine("ERR: Password is longer than 128");
+                                    Console.WriteLine("ERR: Password is longer than 128 or contains invalid characters");
                                     break;
                                 }
                                 string tryDisplayName = elements[2].Trim();
-                                if (tryDisplayName.Length > 128)
+                                if (tryDisplayName.Length > 128 && !Regex.IsMatch(tryDisplayName, @"^[\x21-\x7E]+$"))
                                 {
-                                    Console.WriteLine("ERR: Display name is longer than 20");
+                                    Console.WriteLine("ERR: Display name is longer than 20 or contains invalid characters");
                                     break;
                                 }
                                 messageService.displayName = tryDisplayName;
-                                cts.Cancel();
                                 if (messageService.HandleAuth(username, secret) == true)
                                     authorised = true;
                                 break;
@@ -165,12 +184,14 @@ namespace ChatClientSide
                             catch (IndexOutOfRangeException)
                             {
                                 Console.WriteLine("ERR: Wrong amount of elements for the commmand");
-                                continue;
+                                break;
                             }
 
                         case "/join":
                             try
                             {
+                                cts.Cancel();
+                                listeningTask.Wait();
                                 var elements = inputs[1].Split(' ');
                                 if (elements.Length != 1)
                                 {
@@ -183,64 +204,63 @@ namespace ChatClientSide
                                     break;
                                 }
                                 string channelId = elements[0].Trim();
-                                if (channelId.Length > 128)
+                                if (channelId.Length > 128 && !Regex.IsMatch(channelId, @"^[A-Za-z0-9-]+$"))
                                 {
-                                    Console.WriteLine("ERR: ChannelId name is longer than 20");
+                                    Console.WriteLine("ERR: ChannelId name is longer than 20 or contains invalid characters");
                                     break;
                                 }
-                                cts.Cancel();
-                                listeningTask.Wait();
                                 messageService.HandleJoin(channelId);
                                 break;
                             }
                             catch (IndexOutOfRangeException)
                             {
                                 Console.WriteLine("ERR: Wrong amount of elements for the commmand");
-                                continue;
+                                break;
                             }
                         case "/rename":
                             try
                             {
+                                cts.Cancel();
+                                listeningTask.Wait();
                                 var elements = inputs[1].Split(' ');
                                 if (elements.Length != 1)
                                 {
                                     Console.WriteLine("ERR: Wrong amount of elements for the commmand");
                                     break;
                                 }
-                                cts.Cancel();
                                 if (authorised == false)
                                 {
                                     Console.WriteLine("ERR: You are not authorised to rename");
                                     break;
                                 }
                                 string renameDisplayName = inputs[1];
-                                if (renameDisplayName.Length > 128)
+                                if (renameDisplayName.Length > 128 && !Regex.IsMatch(renameDisplayName, @"^[\x21-\x7E]+$"))
                                 {
-                                    Console.WriteLine("ERR: Display name is longer than 20");
+                                    Console.WriteLine("ERR: Display name is longer than 20 or contains invalid characters");
                                     break;
                                 }
-                                listeningTask.Wait();
                                 messageService.displayName = renameDisplayName;
-
                                 break;
                             }
                             catch (IndexOutOfRangeException)
                             {
                                 Console.WriteLine("ERR: Wrong amount of elements for the commmand");
-                                continue;
+                                break;
                             }
                         case "/bye":
+                            cts.Cancel();
+                            listeningTask.Wait();
                             if (inputs.Length != 1)
                             {
                                 Console.WriteLine("ERR: Wrong amount of elements for the commmand");
                                 break;
                             }
-                            cts.Cancel();
-                            listeningTask.Wait();
                             messageService.HandleBye();
                             running = false;
                             break;
                         case "/help":
+                            cts.Cancel();
+                            listeningTask.Wait();
                             if (inputs.Length != 1)
                             {
                                 Console.WriteLine("ERR: Wrong amount of elements for the commmand");
@@ -249,13 +269,13 @@ namespace ChatClientSide
                             MessageService.PrintHelp();
                             break;
                         default:
+                            cts.Cancel();
+                            listeningTask.Wait();
                             if (authorised == false)
                             {
                                 Console.WriteLine("ERR: You are not authorised to send messages");
                                 break;
                             }
-                            cts.Cancel();
-                            listeningTask.Wait();
                             messageService.HandleMsg(input);
                             break;
                     }
