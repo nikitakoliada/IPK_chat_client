@@ -65,10 +65,6 @@ namespace ChatClientSide
                         byte[] serverResponse = result.Buffer;
                         MessageType msgType = (MessageType)serverResponse[0];
                         int receivedMessageId = BitConverter.ToUInt16(new byte[] { serverResponse[1], serverResponse[2] }, 0);
-                        // if (msgType == MessageType.CONFIRM)
-                        // {
-                        //     Console.WriteLine("Received confirmation where it doesnt need to be " + receivedMessageId);
-                        // }
                         if (msgType == MessageType.ERR || msgType == MessageType.MSG)
                         {
                             string receivedDisplayName = ExtractString(serverResponse, startIndex: 3);
@@ -85,7 +81,6 @@ namespace ChatClientSide
                         }
                         else if (msgType == MessageType.BYE)
                         {
-                            //Console.WriteLine("Server has closed the connection.");
                             HandleConfirm(receivedMessageId);
                             client.Close();
                             Environment.Exit(0);
@@ -108,17 +103,12 @@ namespace ChatClientSide
 
                 }
             }
-
         }
 
         public bool WaitConfirm(int messageId)
         {
             try
             {
-
-                //UdpReceiveResult result = await client.ReceiveAsync(cts.Token).ConfigureAwait(false);
-                //byte[] serverResponse = result.Buffer;
-                //port = result.RemoteEndPoint.Port;
                 IPEndPoint endpoint = new IPEndPoint(IPAddress.Any, 0);
                 // if the input is from file we need to wait for the server to reply
                 Thread.Sleep(250);
@@ -143,14 +133,13 @@ namespace ChatClientSide
             }
             catch (OperationCanceledException)
             {
-                //Console.WriteLine("Confirmation timed out");
+                //pass
             }
             catch (SocketException ex)
             {
                 if (ex.SocketErrorCode == SocketError.TimedOut)
                 {
-                    //Console.WriteLine("Confirmation timed out");
-
+                    //pass
                 }
                 else
                 {
@@ -182,11 +171,16 @@ namespace ChatClientSide
                     HandleConfirm(receivedMessageId);
                     if (replyByte != (byte)MessageType.REPLY)
                     {
+                        string receivedDisplayName = ExtractString(receiveBytes, startIndex: 3);
+                        string messageContents = ExtractString(receiveBytes, startIndex: 3 + receivedDisplayName.Length + 1);
+
                         if (replyByte == (byte)MessageType.MSG)
                         {
-                            string receivedDisplayName = ExtractString(receiveBytes, startIndex: 3);
-                            string messageContents = ExtractString(receiveBytes, startIndex: 3 + receivedDisplayName.Length + 1);
                             Console.WriteLine(receivedDisplayName + ": " + messageContents);
+                        }
+                        if (replyByte == (byte)MessageType.ERR)
+                        {
+                            Console.WriteLine("ERR FROM " + receivedDisplayName + ": " + messageContents);
                         }
                         continue;
                     }
@@ -213,7 +207,7 @@ namespace ChatClientSide
                 }
                 catch (OperationCanceledException)
                 {
-                    //Console.WriteLine("Reply timed out");
+                    // pass
                 }
                 catch (SocketException ex)
                 {
@@ -242,8 +236,6 @@ namespace ChatClientSide
             Array.Copy(expectedMessageIdBytes, 0, message, 1, expectedMessageIdBytes.Length);
             client.Send(message, message.Length, server, port);
         }
-
-        // /auth xkolia00 90ac98ef-7d30-429a-8536-784ef48b43c3 tester_from_ohio_udp
         public override bool HandleAuth(string username, string secret)
         {
 
@@ -265,7 +257,6 @@ namespace ChatClientSide
                     messageId = GetMessageId();
                     UdpMessageBuilder.ReplaceMessageId(message, messageId);
                     client.Send(message, message.Length, server, port);
-                    //Console.WriteLine("Resending auth message");
                     if (WaitConfirm(messageId))
                     {
                         break;

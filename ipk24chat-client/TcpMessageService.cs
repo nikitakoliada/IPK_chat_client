@@ -49,7 +49,6 @@ public class TcpMessageService : MessageService
         var parts = responseData.Split('\n');
         foreach (var response in parts)
         {
-
             if (response.Contains("MSG"))
             {
                 string pattern = @"MSG FROM (\S+) IS (.+)";
@@ -156,49 +155,6 @@ public class TcpMessageService : MessageService
         int bytes = stream.Read(responseBytes, 0, responseBytes.Length);
         string responseData = Encoding.ASCII.GetString(responseBytes, 0, bytes);
         HandleResponse(responseData);
-        // bool gotReply = false;
-        // // wait for a reply from the server ( doesnt send somhoew)
-        // //while (!gotReply)
-        // //{
-        //     byte[] responseBytes = new byte[1000];
-        //     int bytes = stream.Read(responseBytes, 0, responseBytes.Length);
-        //     string responseData = Encoding.ASCII.GetString(responseBytes, 0, bytes);
-        //     if (responseData.Contains("REPLY OK IS"))
-        //     {
-        //         responseData = responseData.Replace("REPLY OK IS ", "").Replace("\r\n", "");
-        //         Console.WriteLine("Success: " + responseData);
-        //         gotReply = true;
-        //     }
-        //     else if (responseData.Contains("REPLY NOK IS"))
-        //     {
-        //         responseData = responseData.Replace("REPLY NOK IS ", "").Replace("\r\n", "");
-        //         Console.WriteLine("Failure: " + responseData);
-        //         gotReply = true;
-        //     }
-        //     else if (responseData.Contains("ERR FROM"))
-        //     {
-        //         responseData = responseData.Replace(" IS ", ": ").Replace("\r\n", "");
-        //         Console.WriteLine(responseData);
-        //         gotReply = true;
-
-        //     }
-        //     else if (responseData.Contains("BYE"))
-        //     {
-        //         stream.Close();
-        //         client.Close();
-        //         Environment.Exit(0);
-        //     }
-        //     else if (responseData.Contains("MSG FROM"))
-        //     {
-        //         Console.WriteLine(responseData.Replace("MSG FROM ", "").Replace(" IS ", ": ").Replace("\r\n", "").Trim());
-
-        //     }
-        //     else
-        //     {
-        //         Console.WriteLine("Failure: " + responseData);
-        //         gotReply = true;
-        //     }
-        //}
     }
 
 

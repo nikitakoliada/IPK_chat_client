@@ -1,5 +1,6 @@
 ﻿using System.Buffers;
 using System.Net;
+using System.Net.Mail;
 using System.Net.Sockets;
 
 namespace ChatClientSide
@@ -76,8 +77,6 @@ namespace ChatClientSide
                 try
                 {
                     UdpClient client = new UdpClient();
-                    // IPEndPoint endpoint = new IPEndPoint(IPAddress.Parse(server), port);
-                    //                     client.Client.Bind(endpoint);
                     messageService = new UdpMessageService(client, maxRetransmissions, confirmationTimeout, server, port);
                 }
                 catch (Exception e)
@@ -128,6 +127,11 @@ namespace ChatClientSide
                         case "/auth":
                             try
                             {
+                                if(authorised == true)
+                                {
+                                    Console.WriteLine("ERR: You are already authorised");
+                                    break;
+                                }
                                 var elements = inputs[1].Split(' ');
                                 if (elements.Length != 3)
                                 {
