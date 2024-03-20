@@ -11,7 +11,7 @@ namespace ChatClientSide
     {
         public static void PrintHelpForArg()
         {
-            Console.WriteLine("Usage: ChatClient -t [tcp/udp] -s [server] -p [port] -d [udpConfirmationTimeout] -r [maxRetransmissions]");
+            Console.WriteLine("Usage: ipk24chat-client -t [tcp/udp] -s [server] -p [port] -d [udpConfirmationTimeout] -r [maxRetransmissions]");
             Console.WriteLine("  -t: Transport protocol used for connection");
             Console.WriteLine("  -s: Server IP or hostname");
             Console.WriteLine("  -p: Server port");
@@ -114,7 +114,6 @@ namespace ChatClientSide
                     // if the input is from file we need to wait for the server to reply
                     Thread.Sleep(250);
                     string? input = Console.ReadLine();
-                    Console.WriteLine(input);
                     if (input == null || input == "" || input == "\n" || input == "\r" || input == "\r\n" || input == " ")
                     {
                         cts.Cancel();
