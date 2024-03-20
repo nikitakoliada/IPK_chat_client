@@ -24,7 +24,6 @@ public class TcpMessageService : MessageService
                 int bytesRead = await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken).ConfigureAwait(false);
                 if (bytesRead == 0)
                 {
-                    Console.WriteLine("Server has closed the connection." + "\r\n");
                     break;
                 }
                 string response = Encoding.ASCII.GetString(buffer, 0, bytesRead);

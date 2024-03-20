@@ -99,8 +99,15 @@ namespace ChatClientSide
                 }
                 catch (SocketException ex)
                 {
+                    if (ex.SocketErrorCode == SocketError.OperationAborted)
+                    {
+                        return;
+                    }
+                    else
+                    {
+                        Console.WriteLine("ERR: " + ex.Message);
+                    }
                     Console.WriteLine("ERR: " + ex.Message);
-
                 }
             }
         }
