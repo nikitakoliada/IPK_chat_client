@@ -158,19 +158,19 @@ namespace ChatClientSide
                                     break;
                                 }
                                 string username = elements[0].Trim();
-                                if (username.Length > 20 && !Regex.IsMatch(username, @"^[A-Za-z0-9-]+$"))
+                                if (username.Length > 20 || !Regex.IsMatch(username, @"^[A-Za-z0-9-]+$"))
                                 {
                                     Console.WriteLine("ERR: Username is longer than 20 or contains invalid characters");
                                     break;
                                 }
                                 string secret = elements[1].Trim();
-                                if (secret.Length > 128 && !Regex.IsMatch(secret, @"^[A-Za-z0-9-]+$"))
+                                if (secret.Length > 128 || !Regex.IsMatch(secret, @"^[A-Za-z0-9-]+$"))
                                 {
                                     Console.WriteLine("ERR: Password is longer than 128 or contains invalid characters");
                                     break;
                                 }
                                 string tryDisplayName = elements[2].Trim();
-                                if (tryDisplayName.Length > 128 && !Regex.IsMatch(tryDisplayName, @"^[\x21-\x7E]+$"))
+                                if (tryDisplayName.Length > 20 || !Regex.IsMatch(tryDisplayName, @"^[\x21-\x7E]+$"))
                                 {
                                     Console.WriteLine("ERR: Display name is longer than 20 or contains invalid characters");
                                     break;
@@ -203,7 +203,7 @@ namespace ChatClientSide
                                     break;
                                 }
                                 string channelId = elements[0].Trim();
-                                if (channelId.Length > 128 && !Regex.IsMatch(channelId, @"^[A-Za-z0-9-]+$"))
+                                if (channelId.Length > 20 || !Regex.IsMatch(channelId, @"^[A-Za-z0-9-]+$"))
                                 {
                                     Console.WriteLine("ERR: ChannelId name is longer than 20 or contains invalid characters");
                                     break;
@@ -233,7 +233,7 @@ namespace ChatClientSide
                                     break;
                                 }
                                 string renameDisplayName = inputs[1];
-                                if (renameDisplayName.Length > 128 && !Regex.IsMatch(renameDisplayName, @"^[\x21-\x7E]+$"))
+                                if (renameDisplayName.Length > 20 || !Regex.IsMatch(renameDisplayName, @"^[\x21-\x7E]+$"))
                                 {
                                     Console.WriteLine("ERR: Display name is longer than 20 or contains invalid characters");
                                     break;
@@ -273,6 +273,11 @@ namespace ChatClientSide
                             if (authorised == false)
                             {
                                 Console.WriteLine("ERR: You are not authorised to send messages");
+                                break;
+                            }
+                            if(input.Length > 1400)
+                            {
+                                Console.WriteLine("ERR: Message is longer than 1400 characters");
                                 break;
                             }
                             messageService.HandleMsg(input);
