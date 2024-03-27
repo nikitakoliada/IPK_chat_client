@@ -275,7 +275,7 @@ namespace ChatClientSide
                         if (attempts == maxRetransmissions - 1)
                         {
                             Console.WriteLine("Failure: Authentification failed, maximum amount of retransmissions were sent.");
-                            return true;
+                            return false;
                         }
                         attempts++;
                     }

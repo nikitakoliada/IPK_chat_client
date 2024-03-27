@@ -104,13 +104,15 @@ namespace ChatClientSide
                 }
             }
             bool running = true;
-            Console.CancelKeyPress += new ConsoleCancelEventHandler((sender, e) => CancellationHandler(sender, e, authorised, messageService));
+            CancellationTokenSource cts = new CancellationTokenSource();
+            Task listeningTask = new Task(() => { });
+            Console.CancelKeyPress += new ConsoleCancelEventHandler((sender, e) => CancellationHandler(sender, e, authorised, messageService, cts, listeningTask));
             while (running)
             {
                 try
                 {
-                    CancellationTokenSource cts = new CancellationTokenSource();
-                    var listeningTask = messageService.StartListening(cts.Token); // Start listening without awaiting
+                    cts = new CancellationTokenSource();
+                    listeningTask = messageService.StartListening(cts.Token); // Start listening without awaiting
                     // if the input is from file we need to wait for the server to reply
                     Thread.Sleep(250);
                     string? input = Console.ReadLine();
@@ -203,7 +205,7 @@ namespace ChatClientSide
                                     break;
                                 }
                                 string channelId = elements[0].Trim();
-                                if (channelId.Length > 20 || !Regex.IsMatch(channelId, @"^[A-Za-z0-9-]+$"))
+                                if (channelId.Length > 20 )
                                 {
                                     Console.WriteLine("ERR: ChannelId name is longer than 20 or contains invalid characters");
                                     break;
@@ -309,13 +311,14 @@ namespace ChatClientSide
             messageService.Close();
         }
 
-        private static void CancellationHandler(object? sender, ConsoleCancelEventArgs e, bool authorised, MessageService messageService)
+        private static void CancellationHandler(object? sender, ConsoleCancelEventArgs e, bool authorised, MessageService messageService, CancellationTokenSource cts, Task listeningTask)
         {
             try
             {
                 if (authorised == true)
                 {
-
+                    cts.Cancel();
+                    listeningTask.Wait();
                     messageService.HandleBye();
                     messageService.Close();
                     return;
