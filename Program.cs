@@ -266,7 +266,8 @@ namespace ChatClientSide
                             }
                         case "/bye":
                             cts.Cancel();
-                            try{
+                            try
+                            {
                                 listeningTask.Wait();
                             }
                             catch
@@ -337,19 +338,9 @@ namespace ChatClientSide
         {
             try
             {
-                if (authorised == true)
-                {
-                    cts.Cancel();
-                    listeningTask.Wait();
-                    messageService.HandleBye();
-                    messageService.Close();
-                    return;
-                }
-                else
-                {
-                    messageService.Close();
-                    return;
-                }
+                messageService.HandleBye();
+                messageService.Close();
+                return;
             }
             catch (Exception)
             {

@@ -81,12 +81,14 @@ namespace ChatClientSide
             }
             else
             {
-                Console.Error.WriteLine("ERR: Invalid message received");
-                HandleErr("Invalid message type received.");
-                HandleBye();
-                client.Close();
-                Environment.Exit(0);
-
+                if (msgType != MessageType.CONFIRM && msgType != MessageType.REPLY)
+                {
+                    Console.Error.WriteLine("ERR: Invalid message received");
+                    HandleErr("Invalid message type received.");
+                    HandleBye();
+                    client.Close();
+                    Environment.Exit(0);
+                }
             }
         }
         public override async Task StartListening(CancellationToken cancellationToken)
