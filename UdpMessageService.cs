@@ -20,7 +20,7 @@ namespace ChatClientSide
         private string server;
         private int port;
 
-        public int currentMessageId = 0; // unique message ids 
+        public int currentMessageId = -1; // unique message ids 
 
         public UdpMessageService(UdpClient client, int maxRetransmissions, int confirmationTimeout, string server, int port) : base(maxRetransmissions, confirmationTimeout)
         {
@@ -78,6 +78,9 @@ namespace ChatClientSide
                 HandleConfirm(receivedMessageId);
                 client.Close();
                 Environment.Exit(0);
+            }
+            else{
+                HandleErr("Invalid message type received.");
             }
         }
         public override async Task StartListening(CancellationToken cancellationToken)
@@ -324,7 +327,42 @@ namespace ChatClientSide
             //wait on reply from server
             bool messageStatus = WaitOnReply(messageId);
         }
+        public override void HandleErr(string messageContents){
+            var messageBuilder = new UdpMessageBuilder();
+            messageBuilder.AddMessageType((byte)MessageType.ERR);
+            int messageId = GetMessageId();
+            messageBuilder.AddMessageId(messageId);
+            messageBuilder.AddStringWithDelimiter(displayName);
+            messageBuilder.AddStringWithDelimiter(messageContents);
 
+            byte[] message = messageBuilder.GetMessage();
+
+            //send message to server until confrimation received
+            int attempts = 0;
+            client.Send(message, message.Length, server, port);
+            if (!WaitConfirm(messageId))
+            {
+                while (attempts < maxRetransmissions)
+                {
+                    messageId = GetMessageId();
+                    UdpMessageBuilder.ReplaceMessageId(message, messageId);
+                    client.Send(message, message.Length, server, port);
+                    if (WaitConfirm(messageId))
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        if (attempts == maxRetransmissions)
+                        {
+                            Console.Error.WriteLine("Failure: Message failed.");
+                            break;
+                        }
+                        attempts++;
+                    }
+                }
+            }
+        }
         public override void HandleMsg(string messageContents)
         {
             //format the data to be sent

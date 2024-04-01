@@ -12,25 +12,29 @@ public class MessageService
 
     public virtual async Task StartListening(CancellationToken cancellationToken)
     {
-        // Start listening for messages from the server
+        // Start listening for messages 
         await Task.Delay(0);
         return;
     }
+    public virtual void HandleErr(string msg)
+    {
+        // Send an error message to the server
+    }
     public virtual void HandleMsg(string msg)
     {
-        // Handle a message from the server
+        // Send a message to the server
     }
     public virtual void HandleJoin(string msg)
     {
-        // Handle an error message from the server
+        // Handle an error message 
     }
     public virtual void HandleBye()
     {
-        // Handle a bye message from the server
+        // Handle a bye message 
     }
     public virtual bool HandleAuth(string username, string secret)
     {
-        // Handle an authentication message from the server
+        // Handle an authentication message 
         return false;
     }
     public static void PrintHelp()

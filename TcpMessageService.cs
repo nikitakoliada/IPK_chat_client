@@ -105,14 +105,21 @@ public class TcpMessageService : MessageService
                     string messageCnt = match.Groups[2].Value.Trim();
                     Console.Error.WriteLine("ERR FROM " + recDisplayName + ": " + messageCnt);
                     HandleBye();
-                    client.Close();
+                    Close();
                     Environment.Exit(0);
                 }
             }
             else if (response.Contains("BYE"))
             {
-                stream.Close();
-                client.Close();
+                Close();
+                Environment.Exit(0);
+            }
+            else
+            {
+                Console.Error.WriteLine("ERR: Invalid message received");
+                HandleErr("Invalid message received");
+                HandleBye();
+                Close();
                 Environment.Exit(0);
             }
         }
@@ -159,6 +166,13 @@ public class TcpMessageService : MessageService
         HandleResponse(responseData);
     }
 
+    public override void HandleErr(string messageContents)
+    {
+        string message = string.Format("ERR FROM {0} IS {1}\r\n", displayName, messageContents);
+        byte[] data = Encoding.ASCII.GetBytes(message);
+        stream.Write(data, 0, data.Length);
+        //wait on reply from server
+    }
 
 
     public override void HandleMsg(string messageContents)
