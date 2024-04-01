@@ -128,8 +128,8 @@ namespace ChatClientSide
                             //do nothing
                         }
                         messageService.HandleBye();
-                        messageService.Close();
-
+                        running = false;
+                        break;
                     }
                     else if (input == "" || input == "\n" || input == "\r" || input == "\r\n" || input == " ")
                     {
