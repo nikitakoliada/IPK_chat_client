@@ -48,6 +48,10 @@ public class TcpMessageService : MessageService
         var parts = responseData.Split('\n');
         foreach (var response in parts)
         {
+            if(string.IsNullOrEmpty(response))
+            {
+                continue;
+            }
             if (response.Contains("MSG"))
             {
                 string pattern = @"MSG FROM (\S+) IS (.+)";

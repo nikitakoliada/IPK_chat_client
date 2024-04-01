@@ -266,7 +266,13 @@ namespace ChatClientSide
                             }
                         case "/bye":
                             cts.Cancel();
-                            listeningTask.Wait();
+                            try{
+                                listeningTask.Wait();
+                            }
+                            catch
+                            {
+                                //do nothing
+                            }
                             if (inputs.Length != 1)
                             {
                                 Console.Error.WriteLine("ERR: Wrong amount of elements for the commmand");
