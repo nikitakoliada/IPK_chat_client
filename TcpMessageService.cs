@@ -40,7 +40,7 @@ public class TcpMessageService : MessageService
         }
         catch (Exception ex)
         {
-            Console.WriteLine("ERR " + ex.Message);
+            Console.Error.WriteLine("ERR " + ex.Message);
         }
     }
     public void HandleResponse(string responseData)
@@ -74,7 +74,7 @@ public class TcpMessageService : MessageService
                 if (match.Success)
                 {
                     string messageCnt = match.Groups[1].Value.Trim();
-                    Console.WriteLine("Success: " + messageCnt);
+                    Console.Error.WriteLine("Success: " + messageCnt);
                 }
             }
             else if (response.Contains("REPLY NOK IS"))
@@ -88,7 +88,7 @@ public class TcpMessageService : MessageService
                 if (match.Success)
                 {
                     string messageCnt = match.Groups[1].Value.Trim();
-                    Console.WriteLine("Failure: " + messageCnt);
+                    Console.Error.WriteLine("Failure: " + messageCnt);
                 }
             }
             else if (response.Contains("ERR FROM"))
@@ -103,7 +103,7 @@ public class TcpMessageService : MessageService
                 {
                     string recDisplayName = match.Groups[1].Value.Trim();
                     string messageCnt = match.Groups[2].Value.Trim();
-                    Console.WriteLine("ERR FROM " + recDisplayName + ": " + messageCnt);
+                    Console.Error.WriteLine("ERR FROM " + recDisplayName + ": " + messageCnt);
                     HandleBye();
                     client.Close();
                     Environment.Exit(0);

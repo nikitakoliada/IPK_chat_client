@@ -63,7 +63,7 @@ namespace ChatClientSide
                 HandleConfirm(receivedMessageId);
                 if (msgType == MessageType.ERR)
                 {
-                    Console.WriteLine("ERR FROM " + receivedDisplayName + ": " + messageContents);
+                    Console.Error.WriteLine("ERR FROM " + receivedDisplayName + ": " + messageContents);
                     HandleBye();
                     client.Close();
                     Environment.Exit(0);
@@ -112,9 +112,9 @@ namespace ChatClientSide
                     }
                     else
                     {
-                        Console.WriteLine("ERR: " + ex.Message);
+                        Console.Error.WriteLine("ERR: " + ex.Message);
                     }
-                    Console.WriteLine("ERR: " + ex.Message);
+                    Console.Error.WriteLine("ERR: " + ex.Message);
                 }
             }
         }
@@ -160,7 +160,7 @@ namespace ChatClientSide
                 }
                 else
                 {
-                    Console.WriteLine("ERR: " + ex.Message);
+                    Console.Error.WriteLine("ERR: " + ex.Message);
                 }
             }
             return false;
@@ -203,13 +203,13 @@ namespace ChatClientSide
                     if ((int)result == 1)
                     {
                         messageStatus = true;
-                        Console.WriteLine("Success: " + messageContent);
+                        Console.Error.WriteLine("Success: " + messageContent);
                         return messageStatus;
 
                     }
                     else if ((int)result == 0)
                     {
-                        Console.WriteLine("Failure: " + messageContent);
+                        Console.Error.WriteLine("Failure: " + messageContent);
                         return messageStatus;
                     }
 
@@ -226,13 +226,13 @@ namespace ChatClientSide
                     }
                     else
                     {
-                        Console.WriteLine("ERR: " + ex.Message);
+                        Console.Error.WriteLine("ERR: " + ex.Message);
                     }
                 }
             }
             if (attempts == maxRetransmissions)
             {
-                Console.WriteLine("Failure: Maximum amount of retransmissions were sent.");
+                Console.Error.WriteLine("Failure: Maximum amount of retransmissions were sent.");
             }
             return messageStatus;
         }
@@ -274,7 +274,7 @@ namespace ChatClientSide
                     {
                         if (attempts == maxRetransmissions - 1)
                         {
-                            Console.WriteLine("Failure: Authentification failed, maximum amount of retransmissions were sent.");
+                            Console.Error.WriteLine("Failure: Authentification failed, maximum amount of retransmissions were sent.");
                             return false;
                         }
                         attempts++;
@@ -314,7 +314,7 @@ namespace ChatClientSide
                     {
                         if (attempts == maxRetransmissions - 1)
                         {
-                            Console.WriteLine("Failure: Joining failed, maximum amount of retransmissions were sent.");
+                            Console.Error.WriteLine("Failure: Joining failed, maximum amount of retransmissions were sent.");
                             break;
                         }
                         attempts++;
@@ -355,7 +355,7 @@ namespace ChatClientSide
                     {
                         if (attempts == maxRetransmissions)
                         {
-                            Console.WriteLine("Failure: Message failed.");
+                            Console.Error.WriteLine("Failure: Message failed.");
                             break;
                         }
                         attempts++;
@@ -391,7 +391,7 @@ namespace ChatClientSide
                     {
                         if (attempts == maxRetransmissions)
                         {
-                            Console.WriteLine("Failure: BYE failed.");
+                            Console.Error.WriteLine("Failure: BYE failed.");
                             break;
                         }
                         attempts++;
