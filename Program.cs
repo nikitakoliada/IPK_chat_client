@@ -116,7 +116,22 @@ namespace ChatClientSide
                     // if the input is from file we need to wait for the server to reply
                     Thread.Sleep(250);
                     string? input = Console.ReadLine();
-                    if (input == null || input == "" || input == "\n" || input == "\r" || input == "\r\n" || input == " ")
+                    if (input == null)
+                    {
+                        cts.Cancel();
+                        try
+                        {
+                            listeningTask.Wait();
+                        }
+                        catch
+                        {
+                            //do nothing
+                        }
+                        messageService.HandleBye();
+                        messageService.Close();
+
+                    }
+                    else if (input == "" || input == "\n" || input == "\r" || input == "\r\n" || input == " ")
                     {
                         cts.Cancel();
                         try
@@ -129,6 +144,7 @@ namespace ChatClientSide
                         }
                         continue;
                     }
+
                     string[] inputs = input.Split(' ', 2);
                     string command = inputs[0].Trim();
                     if (inputs.Length > 1)
@@ -148,7 +164,7 @@ namespace ChatClientSide
                                 {
                                     //do nothing
                                 }
-                                if(authorised == true)
+                                if (authorised == true)
                                 {
                                     Console.WriteLine("ERR: You are already authorised");
                                     break;
@@ -205,7 +221,7 @@ namespace ChatClientSide
                                     break;
                                 }
                                 string channelId = elements[0].Trim();
-                                if (channelId.Length > 20 )
+                                if (channelId.Length > 20)
                                 {
                                     Console.WriteLine("ERR: ChannelId name is longer than 20 or contains invalid characters");
                                     break;
@@ -277,7 +293,7 @@ namespace ChatClientSide
                                 Console.WriteLine("ERR: You are not authorised to send messages");
                                 break;
                             }
-                            if(input.Length > 1400)
+                            if (input.Length > 1400)
                             {
                                 Console.WriteLine("ERR: Message is longer than 1400 characters");
                                 break;
