@@ -79,8 +79,14 @@ namespace ChatClientSide
                 client.Close();
                 Environment.Exit(0);
             }
-            else{
+            else
+            {
+                Console.Error.WriteLine("ERR: Invalid message received");
                 HandleErr("Invalid message type received.");
+                HandleBye();
+                client.Close();
+                Environment.Exit(0);
+
             }
         }
         public override async Task StartListening(CancellationToken cancellationToken)
@@ -327,7 +333,8 @@ namespace ChatClientSide
             //wait on reply from server
             bool messageStatus = WaitOnReply(messageId);
         }
-        public override void HandleErr(string messageContents){
+        public override void HandleErr(string messageContents)
+        {
             var messageBuilder = new UdpMessageBuilder();
             messageBuilder.AddMessageType((byte)MessageType.ERR);
             int messageId = GetMessageId();
